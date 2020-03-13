@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# The Quintessential Example: Deep Neural Network Digit Recognition on the MNIST Dataset
+
+The following demonstrates one of the most common solutions to computer vision tasks: a deep, backpropagated convolutional neural network. These are comprised of one or more layers of convolutional windows, the filters of which capture meaningful patterns in the input images. Such networks often use layer-wise scale-reducing methods such as max- or average-pooling quartets, nonets, or other windows of orthogonal features.
+
+
+For the purposes of this exercise, we will use the ubiquitous MNIST hand-written digit collection.
+
+
+We'll test different combinations of specific hyperparameters and TODO: FINISH THIS SENTENCE FJEOFJIPOWFJEPOFJEWOPEWFJEW90354-209834-023895-823-
+
+## Workspace Preparation
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(keras)
+
+set.seed(0415)
+
+# Note: Local configuration. Set yourself or comment out for default.
+use_python("/usr/bin/python3")
+
+mnist <- dataset_mnist()
+
+# Our data-loading procedure will vary little from the demonstrative examples.
+c(train_images, train_labels) %<-% mnist$train
+c(test_images, test_labels) %<-% mnist$test
+
+# Scale 1-byte intensity values to [0,1]
+train_x <- train_images / 255
+test_x <- test_images / 255
+
+# Cast classes to one-hot matrix format
+train_y <- to_categorical(train_labels)
+test_y <- to_categorical(test_labels)
+```
+
+### A function to generate models based on a couple of variable hyperparameters
+
+```{r}
+set.seed(8675309)
+
+try.model <- function(l1_filters, l2_filters) {
+  # Specify meaningful names for the log and checkpoint directories
+  run_name <- paste("deep_mnist_conv2d", l1_filters, l2_filters,
+                    sep = "-")
+  run_path <- paste("logs", run_name,
+                    sep = "/")
+  checkpoint_path <- paste("checkpoints", run_name,
+                           sep = "/") %>%
+    paste(".h5", sep = "")
+  
+  
+  model <- keras_model_sequential()
+  model %>%
+    
+    # Inputs are in the form (None, 28, 28). Specify
+    # dimensionally that they're grids of single values.
+    layer_reshape(c(NULL, 28, 28, 1)) %>%
+    
+    # First convolutional layer with a 3x3x1=9 feature kernel.
+    # Tried-and-true ReLU neurons will work well for this case.
+    layer_conv_2d(filters = l1_filters,
+                  name = "hidden_0",
+                  activation = "relu",
+                  kernel_size = c(3, 3)) %>%
+    
+    # Max pooling to reduce dimensions. We'll summarize each adjacent 4-value
+    # combination without overlap (strides == pool_size).
+    layer_max_pooling_2d(pool_size = c(2, 2),
+                         strides = c(2, 2)) %>%
+    
+    # Add a dropout layer for training, encouraging less immediate overfitting
+    layer_dropout(rate = 0.333) %>%
+    
+    # Create a second layer set in the same manner as the first
+    layer_conv_2d(filters = l2_filters,
+                  name = "hidden_1",
+                  activation = "relu",
+                  kernel_size = c(3, 3)) %>%
+    layer_max_pooling_2d(pool_size = c(2, 2),
+                         strides = c(2, 2)) %>%
+    layer_dropout(rate = 0.333) %>%
+    
+    # Flatten the 2D feature map
+    layer_flatten() %>%
+    
+    # Feed the flattened features into a dense classification layer, in turn
+    # feeding the softmax activation function. This very handy boi will yield
+    # probability outputs.
+    layer_dense(units = 10,
+                activation = "softmax")
+  
+  # Use a slightly-small learning rate for classification, 1e-2 -> 1e-5 being the
+  # usual range. I tend to use 1e-4 -> 1e-6 for continuous outputs.
+  opt <- optimizer_adam(lr = 5e-4)
+  
+  model %>% compile(loss = "categorical_crossentropy",
+                    optimizer = opt,
+                    metrics = "accuracy")
+  
+  model %>% fit(train_x, train_y,
+                validation_data = list(test_x, test_y),
+                batch_size = 250,
+                epochs = 100,
+                shuffle = T,
+                
+                # Run it into tensorboard, stop when loss troughs out, and
+                # checkpoint the best performing iteration.
+                callbacks = c(callback_tensorboard(run_path),
+                              callback_model_checkpoint(checkpoint_path,
+                                                        save_best_only = TRUE),
+                              callback_early_stopping(monitor = "val_loss")))
+}
+```
+
+
+### Iteratively examine hyperparameter options
+
+In a real world situation, examining the hyperparameter space would be more akin to a design-of-experiments or even an optimization problem. We'd include a few more factors--things like internal hyperparams for the optimizer, different learning rate schedules, and so on--and use a tool like the **caret** package to implement something more elegant than an ordinary grid search.
+
+```{r}
+# Begin logging and open TensorBoard in-browser
+# tensorboard(log_dir = "logs/")
+# 
+# For each combination of first and second layer features equal to one of the
+# specified values, run a model. Its output will be logged in TensorBoard.
+# for (h0_size in c(5, 9, 14, 23, 37)) {
+#   for (h1_size in c(5, 9, 14, 23, 37)) {
+#     try.model(h0_size, h1_size)
+#   }
+# }
+```
+
+The above will create a spread of 25 models with varying first and second layer feature sizes. If one were to uncomment the code above and view the results in TensorBoard, one would find that a combination of 14 1st layer and 37 2nd layer neurons is most effective under the circumstances of this experiment. (The resulting validation set accuracy is 98.9%--not a record setter, but decent for a quick-and-dirty demonstration.)

@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Simple Deep MNIST"
 output: html_notebook
 ---
 
@@ -8,10 +8,7 @@ output: html_notebook
 The following demonstrates one of the most common solutions to computer vision tasks: a deep, backpropagated convolutional neural network. These are comprised of one or more layers of convolutional windows, the filters of which capture meaningful patterns in the input images. Such networks often use layer-wise scale-reducing methods such as max- or average-pooling quartets, nonets, or other windows of orthogonal features.
 
 
-For the purposes of this exercise, we will use the ubiquitous MNIST hand-written digit collection.
-
-
-We'll test different combinations of specific hyperparameters and TODO: FINISH THIS SENTENCE FJEOFJIPOWFJEPOFJEWOPEWFJEW90354-209834-023895-823-
+For the purposes of this exercise, we will use the ubiquitous MNIST hand-written digit collection. We'll perform a 5 x 5 grid search for first and second layer sizes, and otherwise use engineering judgment on other hyperparameters.
 
 ## Workspace Preparation
 ```{r message=FALSE, warning=FALSE}
@@ -25,7 +22,7 @@ use_python("/usr/bin/python3")
 
 mnist <- dataset_mnist()
 
-# Our data-loading procedure will vary little from the demonstrative examples.
+# Our data-loading procedure will vary little from Google's demonstrative examples.
 c(train_images, train_labels) %<-% mnist$train
 c(test_images, test_labels) %<-% mnist$test
 
